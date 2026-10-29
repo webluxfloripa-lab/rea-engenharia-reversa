@@ -1,0 +1,41 @@
+name: Instalar e validar REA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/validar-rea.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  testar-node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Baixar o codigo do REA
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Instalar Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: rea-main/package-lock.json
+      - name: Conferir Node.js, npm e REA
+        shell: bash
+        run: |
+          node --version
+          npm --version
+          node -p "JSON.stringify({name:require('./rea-main/package.json').name,version:require('./rea-main/package.json').version})"
+      - name: Instalar dependencias oficiais
+        working-directory: rea-main
+        run: npm ci --no-audit --no-fund
+      - name: Compilar REA
+        working-directory: rea-main
+        run: npm run build:cached
+      - name: Testar interface de linha de comando
+        working-directory: rea-main
+        run: node scripts/rea.mjs --help
