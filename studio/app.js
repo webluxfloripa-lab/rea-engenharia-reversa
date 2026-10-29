@@ -4,6 +4,10 @@
   let token = sessionStorage.getItem('rea-studio-token') || '';
   let activeJob = null;
   let previewContent = '';
+  let activeFile = '';
+  let activeProject = '';
+  let fileSha = '';
+  let editing = false;
   let polling = null;
   const setText = (id, value) => { el(id).textContent = String(value); };
   function feedback(text, isError = false) { const n=el('feedback');n.textContent=text;n.className=`feedback ${isError?'error':'ok'}`; }
@@ -17,7 +21,7 @@
     return payload;
   }
   const getProject=()=>el('project').value.trim();
-  function setBusy(busy) {el('analyze-btn').disabled=busy;el('upload-btn').disabled=busy;}
+  function setBusy(busy) {el('analyze-btn').disabled=busy;el('upload-btn').disabled=busy;el('save-code').disabled=busy||!editing;}
   async function status() {
     const data=await api('/api/status');
     setText('engine',data.reaVersion||'—');
@@ -61,14 +65,67 @@
     const list=el('file-list');list.replaceChildren();
     if(!files.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='Nenhum arquivo neste projeto. Selecione e envie seus arquivos acima.';list.append(empty);return}
     for(const file of files){
-      const button=document.createElement('button');button.type='button';button.className='file-entry';button.textContent=`⌁  ${file.path}  ·  ${(file.bytes/1024).toFixed(1)} KB`;
+      const button=document.createElement('button');button.type='button';button.className='file-entry';button.dataset.path=file.path;button.textContent=`⌁  ${file.path}  ·  ${(file.bytes/1024).toFixed(1)} KB`;
       button.addEventListener('click',async()=>{
         list.querySelectorAll('.file-entry').forEach(x=>x.classList.remove('active'));button.classList.add('active');
-        try{const d=await api(`/api/file?project=${encodeURIComponent(name)}&path=${encodeURIComponent(file.path)}`);previewContent=d.content;setText('preview-title',file.path);setText('preview',d.content);el('copy-code').disabled=false}
-        catch(e){feedback(e.message,true)}
+        if(editing && el('code-editor').value!==previewContent && !confirm('Descartar alterações não salvas?'))return;
+        try{await openFile(name,file.path)}catch(e){feedback(e.message,true)}
       });
+      if(activeFile===file.path && activeProject===name)button.classList.add('active');
       list.append(button);
     }
+  }
+  function setEditorMode(value) {
+    editing=value;
+    el('preview').hidden=value;
+    el('code-editor').hidden=!value;
+    el('save-code').hidden=!value;
+    el('cancel-code').hidden=!value;
+    el('edit-code').hidden=value;
+    el('save-code').disabled=!value;
+    if(value) el('code-editor').focus();
+  }
+  async function openFile(project,filename) {
+    const d=await api(`/api/file?project=${encodeURIComponent(project)}&path=${encodeURIComponent(filename)}`);
+    previewContent=d.content; fileSha=d.sha; activeFile=filename; activeProject=project;
+    setText('preview-title',filename);setText('preview',d.content);
+    el('code-editor').value=d.content;
+    setEditorMode(false);
+    el('copy-code').disabled=false;
+    el('edit-code').disabled=false;
+    el('download-code').disabled=false;
+    const entries=Array.from(el('file-list').querySelectorAll('.file-entry'));
+    for(const e of entries)e.classList.toggle('active',e.dataset.path===filename);
+  }
+  async function saveFile() {
+    if(!editing||!activeFile) return;
+    const content=el('code-editor').value;
+    el('save-code').disabled=true;
+    try{
+      const d=await api('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project:activeProject,filename:activeFile,content,expectedSha:fileSha})});
+      previewContent=content;fileSha=d.sha;
+      setText('preview',content);setEditorMode(false);
+      feedback('Arquivo salvo com sucesso no espaço de trabalho privado.');
+      await listFiles();
+    }catch(e){feedback(e.message,true);el('save-code').disabled=false}
+  }
+  function downloadFile() {
+    if(!activeFile)return;
+    const content=editing?el('code-editor').value:previewContent;
+    const url=URL.createObjectURL(new Blob([content],{type:'text/plain;charset=utf-8'}));
+    const a=document.createElement('a');a.href=url;a.download=activeFile.split('/').pop();document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }
+  async function newFile() {
+    const project=getProject();
+    if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,49}$/.test(project))throw new Error('Nome do projeto inválido.');
+    if(editing&&el('code-editor').value!==previewContent&&!confirm('Descartar alterações não salvas?'))return;
+    const filename=prompt('Nome do arquivo novo (ex.: src/novo.js):','src/novo.js');
+    if(!filename)return;
+    const {files}=await api(`/api/files?project=${encodeURIComponent(project)}`);
+    if(files.some(f=>f.path===filename))throw new Error('Esse arquivo já existe. Abra-o para editar.');
+    await api(`/api/upload?project=${encodeURIComponent(project)}&path=${encodeURIComponent(filename)}`,{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:''});
+    await listFiles();await openFile(project,filename);setEditorMode(true);
+    feedback('Arquivo criado. Edite e clique em Salvar.');
   }
   function renderJob(j){
     const statusText=j.status==='executando'?'Análise em andamento…':j.status==='concluido'?'Análise concluída':'Análise encerrada com erro';
@@ -121,10 +178,26 @@
   el('files').addEventListener('change',selected);
   el('upload-btn').addEventListener('click',()=>uploadFiles().catch(e=>{feedback(e.message,true);setBusy(false)}));
   el('analysis-form').addEventListener('submit',runAnalysis);
-  el('project').addEventListener('change',()=>listFiles().catch(e=>feedback(e.message,true)));
+  el('project').addEventListener('change',()=>{
+    if(editing&&el('code-editor').value!==previewContent&&!confirm('Descartar alterações não salvas?')){el('project').value=activeProject;return}
+    activeFile='';activeProject='';previewContent='';fileSha='';
+    setText('preview-title','Nenhum arquivo aberto');setText('preview','Selecione um arquivo.');
+    el('copy-code').disabled=true;el('edit-code').disabled=true;el('download-code').disabled=true;setEditorMode(false);
+    listFiles().catch(e=>feedback(e.message,true));
+  });
   el('files-refresh').addEventListener('click',()=>listFiles().catch(e=>feedback(e.message,true)));
   el('refresh-btn').addEventListener('click',()=>status().catch(e=>feedback(e.message,true)));
   el('download-report').addEventListener('click',download);
+  el('edit-code').addEventListener('click',()=>{if(activeFile)setEditorMode(true)});
+  el('cancel-code').addEventListener('click',()=>{
+    if(el('code-editor').value!==previewContent&&!confirm('Descartar alterações não salvas?'))return;
+    el('code-editor').value=previewContent;setEditorMode(false);
+  });
+  el('save-code').addEventListener('click',saveFile);
+  el('new-file').addEventListener('click',()=>newFile().catch(e=>feedback(e.message,true)));
+  el('download-code').addEventListener('click',downloadFile);
+  el('code-editor').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveFile()}});
+
   el('copy-code').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(previewContent);feedback('Código copiado para a área de transferência.')}catch{feedback('O navegador não permitiu copiar automaticamente.',true)}});
   init();
 })();
