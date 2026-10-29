@@ -1,0 +1,64 @@
+name: Auditoria completa de instalacao REA e painel
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/auditoria-completa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  auditoria:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Obter codigo do projeto
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Preparar Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: rea-main/package-lock.json
+      - name: Validar arquivo de origem, instaladores e painel
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f rea-main/package.json
+          test -f rea-main/package-lock.json
+          test -f rea-main/scripts/rea.mjs
+          test -f rea-main/LICENSE
+          test -f .devcontainer/devcontainer.json
+          test -f .devcontainer/configurar.sh
+          test -f .devcontainer/iniciar-painel.sh
+          test -f INSTALAR_REA_LINUX_MAC.sh
+          test -f INSTALAR_REA_WINDOWS.ps1
+          test -f studio/server.mjs
+          test -f studio/app.js
+          test -f studio/index.html
+          test -f studio/styles.css
+          test -f studio/server.test.mjs
+          node -e "const p=require('./rea-main/package.json');if(p.name!=='rea-agents'||p.version!=='6.8.0')process.exit(1)"
+          node -e "const p=require('./.devcontainer/devcontainer.json');if(!p.image.includes('node:1-24-'))process.exit(1)"
+      - name: Instalar dependencias REA
+        working-directory: rea-main
+        run: npm ci --no-audit --no-fund
+      - name: Compilar todos os artefatos REA
+        working-directory: rea-main
+        run: npm run build:cached
+      - name: Verificar CLI e versao do runtime
+        working-directory: rea-main
+        run: |
+          node --version
+          node scripts/rea.mjs --help
+      - name: Validar arquivos JavaScript do painel
+        run: |
+          node --check studio/server.mjs
+          node --check studio/app.js
+          node --check studio/server.test.mjs
+      - name: Executar testes autenticacao, edicao e analise
+        run: node --test studio/server.test.mjs
