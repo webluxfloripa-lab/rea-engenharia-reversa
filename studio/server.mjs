@@ -150,7 +150,39 @@ async function main() {
         const file=await ensurePathWithin(slug(url.searchParams.get('project')),relativeFile(url.searchParams.get('path')));
         const stat=await fs.stat(file).catch(()=>{throw error('Arquivo não encontrado.',404)});
         if (stat.size>512*1024) throw error('Prévia limitada a 512 KB.',413);
-        return send(res,200,{content:await fs.readFile(file,'utf8')});
+        const content=await fs.readFile(file,'utf8');
+        const sha=crypto.createHash('sha256').update(content).digest('hex');
+        return send(res,200,{content,sha});
+      }
+      if (req.method==='POST' && url.pathname==='/api/save') {
+        if (runningJob) throw error('Aguarde a conclusão da análise antes de editar arquivos.',409);
+        const {project,filename,content,expectedSha}=await (async()=>{
+          let value;
+          try { value=JSON.parse((await boundedStream(req,600*1024)).toString('utf8')); }
+          catch(e){if(e.status)throw e;throw error('JSON inválido.')}
+          if(!value||Array.isArray(value)||typeof value!=='object')throw error('Pedido inválido.');
+          return value;
+        })();
+        if(typeof content!=='string')throw error('O conteúdo precisa ser texto UTF-8.');
+        const encoded=Buffer.from(content,'utf8');
+        if(encoded.length>512*1024)throw error('Editor limitado a arquivos de até 512 KB.',413);
+        if(typeof expectedSha!=='string'||!/^[a-f0-9]{64}$/.test(expectedSha))throw error('Identificador da versão anterior inválido.');
+        const name=slug(project);
+        const relative=relativeFile(filename);
+        const file=await ensurePathWithin(name,relative);
+        const original=await fs.readFile(file).catch(e=>{if(e.code==='ENOENT')throw error('Arquivo não encontrado.',404);throw e;});
+        if(original.length>512*1024)throw error('Este arquivo é grande demais para o editor.',413);
+        const sha=crypto.createHash('sha256').update(original).digest('hex');
+        if(sha!==expectedSha)throw error('Este arquivo mudou desde que foi aberto. Atualize antes de salvar.',409);
+        const all=await inventory(name);
+        const total=all.reduce((n,x)=>n+x.bytes,0)-original.length+encoded.length;
+        if(total>MAX_TOTAL)throw error('Limite de 60 MB por projeto excedido.',413);
+        const tmp=file+'.rea-'+crypto.randomBytes(7).toString('hex')+'.tmp';
+        try{
+          await fs.writeFile(tmp,encoded,{mode:0o600,flag:'wx'});
+          await fs.rename(tmp,file);
+        }finally{await fs.rm(tmp,{force:true}).catch(()=>{});}
+        return send(res,200,{ok:true,sha:crypto.createHash('sha256').update(encoded).digest('hex'),bytes:encoded.length});
       }
       if (req.method==='POST' && url.pathname==='/api/upload') {
         const project=slug(url.searchParams.get('project'));const relative=relativeFile(url.searchParams.get('path'));
