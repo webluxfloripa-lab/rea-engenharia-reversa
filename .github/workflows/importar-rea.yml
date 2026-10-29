@@ -1,0 +1,60 @@
+name: Importar REA 6.8.0 (primeira configuracao)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/importar-rea.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rea-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  importar:
+    if: github.repository == 'webluxfloripa-lab/rea-engenharia-reversa'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout do repositorio separado
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Importar somente a revisao REA 6.8.0 aprovada
+        shell: bash
+        run: |
+          set -euo pipefail
+          PIN='160d821ac9a0310afcb8d1fc427862dd6508add5'
+          mkdir -p "$RUNNER_TEMP/rea-upstream"
+          git -C "$RUNNER_TEMP/rea-upstream" init -q
+          git -C "$RUNNER_TEMP/rea-upstream" remote add origin https://github.com/morluto/rea.git
+          git -C "$RUNNER_TEMP/rea-upstream" fetch --depth 1 origin "refs/tags/rea-agents-6.8.0"
+          git -C "$RUNNER_TEMP/rea-upstream" checkout -q --detach FETCH_HEAD
+          ACTUAL="$(git -C "$RUNNER_TEMP/rea-upstream" rev-parse HEAD)"
+          test "$ACTUAL" = "$PIN"
+          mkdir -p rea-main
+          if [ -f rea-main/package.json ]; then
+            echo 'rea-main ja existe: importacao nao sera sobrescrita automaticamente.'
+            exit 0
+          fi
+          rsync -a --exclude='.git/' "$RUNNER_TEMP/rea-upstream/" rea-main/
+          node -e 'const p=require("./rea-main/package.json");if(p.name!=="rea-agents"||p.version!=="6.8.0")process.exit(1)'
+          echo "Origem verificada: morluto/rea @ $ACTUAL"
+
+      - name: Registrar importacao no branch principal
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- rea-main
+          if git diff --cached --quiet; then
+            echo "Sem novos arquivos a importar"
+          else
+            git commit -m "Importa REA 6.8.0 da tag oficial imutavelmente verificada"
+            git push origin HEAD:main
+          fi
