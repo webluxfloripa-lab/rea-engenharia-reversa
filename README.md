@@ -29,12 +29,28 @@ Se preferir reconstruir todo o ambiente para aplicar a configuração de desenvo
 
 - Recebe **um objetivo em texto** e guarda-o no relatório para orientar a investigação;
 - Permite enviar arquivos autorizados (`.js`, `.ts`, `.json`, `.html`, `.css` e relacionados);
-- Mostra e permite **copiar o código-fonte dos arquivos enviados**;
+- Permite **criar, editar, salvar, copiar e baixar arquivos** diretamente no painel, tanto no celular como no PC;
+- Confere a versão original antes de salvar para não sobrescrever edições realizadas em paralelo;
 - Executa o comando real `rea analyze-javascript-application` sobre esses arquivos;
 - Exibe as evidências do analisador e permite **exportar o relatório JSON**;
 - Protege a execução com um **token gerado no Codespace** e mantém os arquivos fora do GitHub.
 
 O campo de texto do painel **não é um modelo de IA**: sem integração adicional ele não interpreta instruções livres para escrever código novo. O REA inspeciona artefatos acessíveis e não extrai automaticamente código privado de websites. Para usar análise web, binários e agentes MCP completos consulte a [documentação REA](rea-main/README.md).
+
+
+### Como editar no celular ou computador
+
+**Dentro do REA Studio:** selecione um arquivo em **Arquivos editáveis**, toque em **Editar**, faça a alteração e toque em **Salvar**. Também é possível usar **+ Novo arquivo** e **Baixar**.
+
+**Para editar o próprio código-fonte do REA** (`rea-main/`) ou o aplicativo (`studio/`), abra o editor do [GitHub Codespaces](https://github.com/codespaces). O painel edita somente arquivos enviados para seus projetos, não altera os arquivos internos da ferramenta.
+
+**Para aplicar as atualizações aos Codespaces antigos:** execute `git pull origin main` seguido de `bash .devcontainer/configurar.sh` no terminal. Na aba **Ports**, abra a porta **4173**, com visibilidade **Private**. Esses comandos são executados *no Codespace*, não no GitHub Actions.
+
+**Auditoria automática:** [testes integrados de instalação e painel](https://github.com/webluxfloripa-lab/rea-engenharia-reversa/actions/workflows/auditoria-completa.yml).
+
+### Pacote ZIP antigo versus repositório
+
+O antigo `REA_GitHub_Publico_Pronto.zip` contém 6.700 arquivos sob `rea-main/` e os instaladores locais, mas **não inclui `.devcontainer/` nem `studio/`**. Também não inclui `node_modules/` ou `dist/`, que são gerados pela instalação/compilação. Use a versão atual do [repositório no branch main](https://github.com/webluxfloripa-lab/rea-engenharia-reversa/archive/refs/heads/main.zip), que inclui o painel e as configurações revisadas. Não sobrescreva o repositório atual com o ZIP antigo.
 
 ### Ambiente
 
