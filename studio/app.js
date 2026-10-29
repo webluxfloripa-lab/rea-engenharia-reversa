@@ -67,7 +67,6 @@
     for(const file of files){
       const button=document.createElement('button');button.type='button';button.className='file-entry';button.dataset.path=file.path;button.textContent=`⌁  ${file.path}  ·  ${(file.bytes/1024).toFixed(1)} KB`;
       button.addEventListener('click',async()=>{
-        list.querySelectorAll('.file-entry').forEach(x=>x.classList.remove('active'));button.classList.add('active');
         if(editing && el('code-editor').value!==previewContent && !confirm('Descartar alterações não salvas?'))return;
         try{await openFile(name,file.path)}catch(e){feedback(e.message,true)}
       });
@@ -198,6 +197,6 @@
   el('download-code').addEventListener('click',downloadFile);
   el('code-editor').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveFile()}});
 
-  el('copy-code').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(previewContent);feedback('Código copiado para a área de transferência.')}catch{feedback('O navegador não permitiu copiar automaticamente.',true)}});
+  el('copy-code').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(editing?el('code-editor').value:previewContent);feedback('Código copiado para a área de transferência.')}catch{feedback('O navegador não permitiu copiar automaticamente.',true)}});
   init();
 })();
