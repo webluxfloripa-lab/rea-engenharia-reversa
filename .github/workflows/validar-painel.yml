@@ -1,0 +1,32 @@
+name: Validar REA Studio
+
+on:
+  push:
+    paths:
+      - 'studio/**'
+      - '.devcontainer/**'
+      - '.github/workflows/validar-painel.yml'
+      - 'INICIAR_REA_STUDIO.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validar sintaxe dos arquivos JavaScript
+        run: |
+          node --check studio/server.mjs
+          node --check studio/app.js
+          node --check studio/server.test.mjs
+      - name: Validar API e permissoes do painel
+        run: node --test studio/server.test.mjs
