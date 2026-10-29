@@ -32,7 +32,14 @@ test('API do REA Studio: autenticação, arquivos, análise e exportação', asy
     const bad=await req('/api/upload?project=alvo&path=..%2Fsegredo.js',{method:'POST',body:'secret'});assert.equal(bad.status,400);
     const uploaded=await req('/api/upload?project=alvo&path=src%2Fexample.js',{method:'POST',body:'export const n = 42;'});assert.equal(uploaded.status,201);
     const lst=await req('/api/files?project=alvo');let files=(await lst.json()).files;assert.deepEqual(files.map(f=>f.path),['src/example.js']);
-    const prev=await req('/api/file?project=alvo&path=src%2Fexample.js');assert.match((await prev.json()).content,/const n = 42/);
+    const prev=await req('/api/file?project=alvo&path=src%2Fexample.js');const opened=await prev.json();assert.match(opened.content,/const n = 42/);
+    assert.match(opened.sha,/^[a-f0-9]{64}$/);
+    const noTokenSave=await fetch(url+'/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(noTokenSave.status,401);
+    const save=await req('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project:'alvo',filename:'src/example.js',content:'export const n = 43;',expectedSha:opened.sha})});assert.equal(save.status,200);
+    const updated=await save.json();assert.match(updated.sha,/^[a-f0-9]{64}$/);
+    const conflict=await req('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project:'alvo',filename:'src/example.js',content:'alterado indevidamente',expectedSha:opened.sha})});assert.equal(conflict.status,409);
+    const traversal=await req('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project:'alvo',filename:'../fora.js',content:'unsafe',expectedSha:updated.sha})});assert.equal(traversal.status,400);
+    const reread=await req('/api/file?project=alvo&path=src%2Fexample.js');assert.equal((await reread.json()).content,'export const n = 43;');
     const analyze=await req('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project:'alvo',objective:'Investigar módulos'})});assert.equal(analyze.status,202);
     const id=(await analyze.json()).id;assert.ok(id);
     let job;
