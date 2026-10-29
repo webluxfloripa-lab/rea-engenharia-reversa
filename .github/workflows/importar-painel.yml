@@ -1,0 +1,62 @@
+name: Publicar REA Studio (instalacao inicial)
+
+on:
+  push:
+    paths:
+      - '.github/workflows/importar-painel.yml'
+      - '.rea-studio-transfer.tar.xz'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publicar-rea-studio
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    if: github.repository == 'webluxfloripa-lab/rea-engenharia-reversa'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verificar integridade e extrair painel
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f .rea-studio-transfer.tar.xz ]; then
+            echo 'Arquivo ja importado. Nenhuma alteracao necessaria.'
+            exit 0
+          fi
+          echo '7266c6c48b8134253ac8a739ec8592454f70f06a949f8ac44915a78d6be1c008  .rea-studio-transfer.tar.xz' | sha256sum --check
+          tar -tJf .rea-studio-transfer.tar.xz > /dev/null
+          tar -xJf .rea-studio-transfer.tar.xz
+          rm -f .rea-studio-transfer.tar.xz
+      - name: Verificar sintaxe e integracao de API
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check studio/server.mjs
+          node --check studio/app.js
+          node --test studio/server.test.mjs
+      - name: Publicar no main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A -- README.md .gitignore studio .devcontainer INICIAR_REA_STUDIO.sh .github/workflows/validar-painel.yml .rea-studio-transfer.tar.xz
+          if git diff --cached --quiet; then
+            echo 'Sem mudancas a publicar.'
+          else
+            git commit -m 'feat: REA Studio com Node 24, painel privado e API validada'
+            git push origin HEAD:main
+          fi
