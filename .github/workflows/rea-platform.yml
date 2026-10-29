@@ -1,0 +1,46 @@
+name: REA Studio v2 - real engine and platform verification
+on:
+  push:
+    branches: [feature/rea-studio-platform-v2]
+  pull_request:
+    paths: ['apps/web/**', 'workers/analysis/**', 'fixtures/**', '.github/workflows/rea-platform.yml']
+permissions:
+  contents: read
+jobs:
+  rea-fixture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+          cache-dependency-path: rea-main/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: rea-main
+      - run: npm run build:cached
+        working-directory: rea-main
+      - name: Real REA 6.8.0 fixture analysis
+        run: |
+          mkdir -p "$RUNNER_TEMP/rea-evidence"
+          node rea-main/scripts/rea.mjs analyze-javascript-application fixtures/atlas --json --full-output > "$RUNNER_TEMP/rea-evidence/rea-atlas.json"
+          node -e 'const fs=require("fs");const d=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/rea-evidence/rea-atlas.json","utf8"));if(d.ok!==true)throw Error("REA did not succeed");console.log("REA_FIXTURE_VERIFIED",JSON.stringify({ok:d.ok,keys:Object.keys(d),meta:d.meta}));'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rea-atlas-evidence
+          path: ${{ runner.temp }}/rea-evidence/
+          retention-days: 7
+  legacy-panel:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - run: node --test studio/server.test.mjs
