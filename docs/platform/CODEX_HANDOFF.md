@@ -11,9 +11,9 @@ Este documento transfere o desenvolvimento da beta funcional para o Codex. **Con
 - Demo: https://rea-studio.wryroot65.chatgpt.site/demo
 - Workspace privado: https://rea-studio.wryroot65.chatgpt.site/workspace
 - Sites project_id: `appgprj_6ae3053895608191a4f09e007c4c7276`
-- Versão Sites publicada: 1
-- Commit da fonte Sites: `36eefbfcc269ce59dbb98cc4e689c9ea732eb659`
-- Deployment: `appgdep_6ae3cb7248b48191b82f9d0ad7d3b9fd` (succeeded)
+- Versão Sites publicada: 2
+- Commit da fonte Sites: `a098d74a48b48da55975ceb195bebb3959968c3c`
+- Deployment: `appgdep_6ae3cc6bd72c8191bbbfe1bd7d8e826e` (succeeded)
 
 **Atenção às duas fontes:** a hospedagem Sites usa repositório próprio mantido pelo plugin. `apps/web/` é a cópia versionada correspondente no GitHub canônico. Alterar o GitHub por si só ainda **não** dispara publicação automática no Sites. O próximo deploy precisa sincronizar a fonte Sites e publicar pelo plugin. Não criar outro Site; reutilizar o project_id.
 
@@ -118,3 +118,9 @@ Limites: 12 projetos/conta, 24 arquivos/projeto, 64KB/arquivo, 256KB código/pro
 ## Instrução pronta para o próximo Codex
 
 > Continue o REA Studio 2.0 a partir da branch feature/rea-studio-platform-v2. Leia integralmente docs/platform/CODEX_HANDOFF.md, DELIVERY.md, TESTS.md, SECURITY.md e ROLLBACK.md e a especificação original em docs/platform/MASTER_SPEC.md. Preserve rea-main e studio, não use o ZIP antigo, não altere projetos de clientes. Revalide o estado antes de implementar. Priorize autenticação/persistência E2E e os testes incompletos, depois o backend isolado do REA. Reutilize o Site existente e registre evidências reais. Não anuncie website/APK/IA enquanto os respectivos motores estiverem ausentes. Sem gastos, credenciais no código, operações destrutivas ou publicação de dados privados.
+
+## Verificação pública posterior
+
+Landing e demonstração foram abertas na URL externa. A análise ao vivo gerou 9 observações sintáticas e 2 imports. Uma incompatibilidade de next/link com o runtime foi resolvida usando navegação por anchors nativos. Isso preserva o caminho de autenticação com navegação top-level. Não reintroduzir next/link sem testar produção.
+
+CI completo (REA real + painel legado + testes/types/build do portal) aprovado: https://github.com/webluxfloripa-lab/rea-engenharia-reversa/actions/runs/40968040044 . Pull request de entrega: https://github.com/webluxfloripa-lab/rea-engenharia-reversa/pull/1 .

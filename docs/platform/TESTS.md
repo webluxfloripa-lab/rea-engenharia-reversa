@@ -37,3 +37,7 @@
 |20|PASS no escopo|ZIP determinístico; restore cria nova revisão e mantém revisões anteriores. Não é restauração de desastre|
 
 A plataforma continua beta: resultados parciais/bloqueados não foram contados como aprovação integral dos 20 cenários.
+
+## Verificação após publicação
+
+Landing e demo abertas na URL pública. Análise ao vivo confirmada no navegador: 4 arquivos, 9 observações e 2 imports. CI completo aprovado em https://github.com/webluxfloripa-lab/rea-engenharia-reversa/actions/runs/40968040044 (REA real, painel legado e web-platform). Navegação next/link apresentou incompatibilidade no runtime e foi substituída por anchors nativos na versão Sites 2.
