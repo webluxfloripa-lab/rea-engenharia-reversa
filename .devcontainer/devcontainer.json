@@ -1,13 +1,19 @@
 {
-  "name": "REA Engenharia Reversa",
+  "name": "REA Studio - Engenharia Reversa",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
   "postCreateCommand": "bash .devcontainer/configurar.sh",
+  "postStartCommand": "bash .devcontainer/iniciar-painel.sh",
+  "forwardPorts": [4173],
+  "portsAttributes": {
+    "4173": {
+      "label": "REA Studio - Painel de Engenharia Reversa",
+      "onAutoForward": "notify",
+      "visibility": "private"
+    }
+  },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode"
-      ]
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
     }
   }
 }

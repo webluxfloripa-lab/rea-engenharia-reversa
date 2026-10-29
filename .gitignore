@@ -1,0 +1,9 @@
+# REA Studio: arquivos de usuario, evidencias e tokens nunca versionados
+.rea-studio-data/
+.rea-studio-token
+.rea-studio.log
+.rea-studio.pid
+node_modules/
+.env
+.env.*
+*.local

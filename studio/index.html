@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="color-scheme" content="dark"/>
+  <title>REA Studio — Laboratório de Engenharia Reversa</title>
+  <link rel="stylesheet" href="/styles.css"/>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Navegação">
+      <a class="brand" href="/" aria-label="REA Studio início"><div class="brand-icon">R<span>·</span></div><div><strong>REA<span> STUDIO</span></strong><small>ENGINEERING WORKSPACE</small></div></a>
+      <div class="side-kicker">WORKSPACE</div>
+      <nav class="side-nav"><a class="nav-link active" href="#investigar"><span>⌕</span> Nova investigação</a><a class="nav-link" href="#arquivos"><span>▤</span> Arquivos & código</a><a class="nav-link" href="#resultados"><span>⌘</span> Resultados</a></nav>
+      <div class="side-bottom"><div class="status-dot"><i></i> Ambiente privado</div><div class="side-caption">Execução local no Codespace.<br/>Somente arquivos autorizados.</div><a class="docs" href="https://github.com/webluxfloripa-lab/rea-engenharia-reversa" target="_blank" rel="noreferrer">Ver código no GitHub ↗</a></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div class="crumb"><span>Workspace</span><span class="slash">/</span><strong>Laboratório REA</strong></div><div class="right-top"><span class="chip" id="node-chip">Node.js —</span><span class="avatar">R</span></div></header>
+      <div class="content">
+        <div class="intro" id="investigar"><div><div class="eyebrow"><span class="eyedot"></span> INVESTIGATION CONTROL CENTER</div><h1>Transforme código em <em>evidência.</em></h1><p>Organize seus arquivos, descreva o que deseja investigar e execute o analisador REA com rastreabilidade.</p></div><div class="intro-mark" aria-hidden="true">R<span>·</span></div></div>
+        <div class="metrics"><div class="metric"><small>ENGINE</small><div><strong id="engine">—</strong><span class="metric-label" id="engine-state">Conectando</span></div></div><div class="metric"><small>PROJETOS</small><div><strong id="project-count">—</strong><span class="metric-label">no workspace</span></div></div><div class="metric"><small>EXECUÇÕES</small><div><strong id="job-count">—</strong><span class="metric-label">nesta sessão</span></div></div></div>
+        <div class="workspace-grid">
+          <section class="panel main-panel" aria-labelledby="form-title">
+            <div class="panel-heading"><span class="panel-index">01 / INVESTIGAÇÃO</span><h2 id="form-title">Nova análise</h2><p>O REA inspeciona os arquivos enviados e apresenta módulos, referências e evidências verificáveis.</p></div>
+            <form id="analysis-form">
+              <label for="project">Projeto de análise <span>Identificação</span></label>
+              <input id="project" required maxlength="50" placeholder="ex.: meu-aplicativo" pattern="[a-zA-Z0-9][a-zA-Z0-9_-]*" spellcheck="false" value="meu-projeto"/>
+              <label for="objective">O que você quer investigar? <span>Até 2.000 caracteres</span></label>
+              <textarea id="objective" required maxlength="2000" rows="5" placeholder="Ex.: Quero compreender como a navegação e os componentes JavaScript funcionam, quais módulos se comunicam e onde estão as rotas e os eventos."></textarea>
+              <div class="note"><span>ⓘ</span><span>O objetivo orienta sua investigação e fica registrado no relatório. A análise automática usa os comandos reais do REA; gerar código novo com IA exige integração adicional.</span></div>
+              <div class="upload-head"><label for="files">Arquivos para analisar</label><span>JS, TS, JSON, HTML, CSS e relacionados · até 10 MB por arquivo</span></div>
+              <label class="dropzone" for="files"><input id="files" type="file" multiple accept=".js,.mjs,.cjs,.jsx,.ts,.tsx,.json,.html,.htm,.css,.map,.vue,.svelte,.txt,.md"/><span class="upload-icon">↥</span><strong>Adicionar arquivos do projeto</strong><small>Toque para selecionar arquivos no dispositivo</small></label>
+              <div id="selected" class="selection"></div>
+              <div class="form-actions"><button class="button secondary" type="button" id="upload-btn">Enviar arquivos</button><button class="button primary" type="submit" id="analyze-btn">Executar análise <span>↗</span></button></div>
+              <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+            </form>
+          </section>
+          <div class="aside-panels">
+            <section class="panel small-panel"><div class="section-top"><span class="panel-index">STATUS / AMBIENTE</span><span class="live" id="status-live">● Verificando</span></div><div class="runtime-name">REA ENGINE <span id="rea-version">—</span></div><p>Executa dentro do seu Codespace, sem expor arquivos de outros projetos.</p><button class="text-link" id="refresh-btn" type="button">↻ Atualizar estado</button></section>
+            <section class="panel small-panel"><span class="panel-index">FLUXO DE TRABALHO</span><ol class="steps"><li><b>01</b><div><strong>Descreva</strong><small>Defina o objetivo da investigação.</small></div></li><li><b>02</b><div><strong>Envie</strong><small>Selecione seus artefatos autorizados.</small></div></li><li><b>03</b><div><strong>Execute</strong><small>O REA analisa o diretório local.</small></div></li><li><b>04</b><div><strong>Explore</strong><small>Leia evidências e código disponível.</small></div></li></ol></section>
+            <section class="panel small-panel compliance"><span class="panel-index">IMPORTANTE</span><p>Não é possível recuperar automaticamente o código privado de qualquer website. Analise somente materiais próprios ou autorizados.</p></section>
+          </div>
+        </div>
+        <section class="panel files-panel" id="arquivos"><div class="section-title"><div><span class="panel-index">02 / ARQUIVOS</span><h2>Explorador de código</h2><p>Arquivos do projeto selecionado. Toque para visualizar e copiar o conteúdo.</p></div><button type="button" class="button secondary small" id="files-refresh">Atualizar</button></div><div class="file-area"><div id="file-list" class="file-list"><div class="empty">Envie arquivos para começar.</div></div><div class="file-preview"><div class="preview-head"><span id="preview-title">Nenhum arquivo aberto</span><button type="button" id="copy-code" class="text-link" disabled>Copiar código</button></div><pre id="preview"><code>Selecione um arquivo para visualizar seu conteúdo.</code></pre></div></div></section>
+        <section class="panel results-panel" id="resultados"><div class="section-title"><div><span class="panel-index">03 / RESULTADOS</span><h2>Relatório de engenharia reversa</h2><p>Saída real do analisador, com rastreabilidade da execução.</p></div><button type="button" class="button secondary small" id="download-report" disabled>Exportar JSON ↓</button></div><div id="run-status" class="run-status">Nenhuma análise executada nesta sessão.</div><pre id="result-json"><code>Os resultados aparecerão aqui após a investigação.</code></pre></section>
+        <footer><span>REA STUDIO <b>·</b> Codespaces Edition</span><span>Privado por padrão · Dados não publicados automaticamente</span></footer>
+      </div>
+    </main>
+  </div>
+  <div class="modal-backdrop" id="login-modal"><form class="login-card" id="login-form"><div class="brand-icon big">R<span>·</span></div><div class="eyebrow">AMBIENTE PROTEGIDO</div><h2>Entrar no REA Studio</h2><p>Para impedir que visitantes executem análises no seu Codespace, este painel exige um token local.</p><label for="token">Token de acesso</label><input id="token" type="password" placeholder="Cole seu token aqui" autocomplete="off" required/><button class="button primary" type="submit">Acessar painel ↗</button><div class="login-hint">No Terminal do Codespaces, digite <code>cat .rea-studio-token</code> e copie o resultado. Nunca publique esse token.</div><div class="feedback" id="login-error" role="alert"></div></form></div>
+</body>
+</html>
