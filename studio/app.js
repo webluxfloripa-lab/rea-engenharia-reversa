@@ -135,6 +135,7 @@
     if(j.stderr && j.stdout)display+=`\n\n--- Logs adicionais ---\n${j.stderr}`;
     setText('result-json',display);
     el('download-report').disabled=j.status==='executando';
+    el('review-ai').disabled=j.status!=='concluido';
     if(j.status!=='executando') {clearInterval(polling);polling=null;setBusy(false);status().catch(()=>{});feedback(j.status==='concluido'?'Relatório pronto. Veja a aba Resultados.':'O REA retornou um erro. Consulte o relatório.',j.status!=='concluido');}
   }
   async function pollJob(id) {try{const j=await api(`/api/job?id=${encodeURIComponent(id)}`);renderJob(j)}catch(e){clearInterval(polling);polling=null;setBusy(false);feedback(e.message,true)}}
@@ -177,6 +178,28 @@
   el('files').addEventListener('change',selected);
   el('upload-btn').addEventListener('click',()=>uploadFiles().catch(e=>{feedback(e.message,true);setBusy(false)}));
   el('analysis-form').addEventListener('submit',runAnalysis);
+  el('import-web-btn').addEventListener('click',async()=>{
+    const button=el('import-web-btn');
+    button.disabled=true;
+    try {
+      const sourceUrl=el('import-url').value.trim();
+      if(!el('import-authorized').checked)throw new Error('Confirme autorização para importar a URL.');
+      const result=await api('/api/import-web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project:getProject(),sourceUrl,authorized:true})});
+      await listFiles();await openFile(getProject(),result.path);
+      feedback('Texto público importado: '+result.title+(result.truncated?' (conteúdo limitado)':''));
+    }catch(e){feedback(e.message,true)} finally{button.disabled=false}
+  });
+  el('review-ai').addEventListener('click',async()=>{
+    if(!activeJob)return;
+    if(!confirm('Enviar objetivo e parte das evidências para os provedores configurados na FreeLLMAPI? Não envie dados confidenciais.'))return;
+    const button=el('review-ai');button.disabled=true;
+    try {
+      const result=await api('/api/review-ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:activeJob,consent:true})});
+      el('ai-review').hidden=false;
+      el('ai-review').textContent='REVISÃO IA (não substitui evidência) — '+result.model+'\n\n'+result.review;
+      feedback('Revisão de IA disponível acima do relatório técnico.');
+    }catch(e){feedback(e.message,true)}finally{button.disabled=false}
+  });
   el('project').addEventListener('change',()=>{
     if(editing&&el('code-editor').value!==previewContent&&!confirm('Descartar alterações não salvas?')){el('project').value=activeProject;return}
     activeFile='';activeProject='';previewContent='';fileSha='';

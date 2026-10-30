@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readWebPage, reviewReaEvidence } from './integrations.mjs';
 
 const studioDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(studioDir, '..');
@@ -145,6 +146,31 @@ async function main() {
       const presented = req.headers['x-rea-token'];
       if (typeof presented!=='string' || !crypto.timingSafeEqual(Buffer.from(presented.padEnd(128,' ').slice(0,128)),Buffer.from(token.padEnd(128,' ').slice(0,128))) || presented!==token) return send(res,401,{erro:'Token inválido. Use o token no arquivo .rea-studio-token.'});
       if (req.method==='GET' && url.pathname==='/api/status') return send(res,200,await getStatus());
+      if (req.method==='POST' && url.pathname==='/api/import-web') {
+        if (runningJob) throw error('Aguarde a conclusão da análise.',409);
+        const { project, sourceUrl, authorized } = await bodyJson(req);
+        const name = slug(project);
+        if (authorized !== true) throw error('Confirme autorização para pesquisar o conteúdo público.');
+        const page = await readWebPage(sourceUrl).catch(e=>{throw error(e.message,422)});
+        const filename = 'pesquisa-web/' + crypto.createHash('sha256').update(page.source).digest('hex').slice(0,16) + '.txt';
+        const content = ['Origem: ' + page.source,'Título: ' + page.title,'Descrição: ' + page.description,'Texto extraído (não é código-fonte privado):',page.text].join('\n\n');
+        const encoded = Buffer.from(content, 'utf8');
+        const files = await inventory(name);
+        if (files.length >= 100) throw error('Limite de 100 arquivos por projeto.',413);
+        if (files.reduce((n,x)=>n+x.bytes,0) + encoded.length > MAX_TOTAL) throw error('Limite de 60 MB por projeto.',413);
+        const file = await ensurePathWithin(name,filename,true);
+        await fs.writeFile(file,encoded,{flag:'wx',mode:0o600}).catch(e=>{if(e.code==='EEXIST')throw error('Esta URL já foi importada neste projeto.',409);throw e});
+        return send(res,201,{ok:true,path:filename,source:page.source,title:page.title,truncated:page.truncated,bytes:encoded.length});
+      }
+      if (req.method==='POST' && url.pathname==='/api/review-ai') {
+        const { id, consent } = await bodyJson(req);
+        if (consent !== true) throw error('Autorize o envio das evidências ao provedor de IA.');
+        if (process.env.REA_STUDIO_AI_REVIEW !== '1') throw error('Revisão por IA desabilitada. Configure REA_STUDIO_AI_REVIEW=1.',503);
+        const job=jobs.get(id);
+        if (!job) throw error('Relatório não encontrado.',404);
+        const result=await reviewReaEvidence(job).catch(e=>{throw error(e.message,503)});
+        return send(res,200,result);
+      }
       if (req.method==='GET' && url.pathname==='/api/files') return send(res,200,{files:await inventory(slug(url.searchParams.get('project')))});
       if (req.method==='GET' && url.pathname==='/api/file') {
         const file=await ensurePathWithin(slug(url.searchParams.get('project')),relativeFile(url.searchParams.get('path')));
