@@ -11,6 +11,7 @@ import {promises as fs} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {preflightWebsite} from './website-preflight.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'../..');
@@ -122,8 +123,14 @@ export async function createServer(){
   try{
    if(!authorized(req))return json(res,401,{error:'Authentication required'});
    const route=new URL(req.url||'/', 'http://localhost');
+   if(req.method==='POST'&&route.pathname==='/v1/website/preflight'){
+    const input=await document(req),allow=(process.env.REA_APPROVED_WEBSITE_HOSTS||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean);
+    if(!allow.length)throw problem('Website capture disabled: configure explicit approved hosts and sandboxed Chromium before navigation.',503);
+    let result;try{result=await preflightWebsite(input.url,{allowedHosts:allow});}catch(e){throw problem(e.message,400);}
+    return json(res,200,result);
+   }
    if(req.method==='GET'&&route.pathname==='/v1/capabilities'){
-    return json(res,200,{engine:'REA',version:reaVersion,built,operations:Object.keys(OPERATIONS),androidReady:await checkJadx(),browser:'not-configured',deployment:'loopback-single-operator',publicSafe:false,multiTenant:false,maxUploadBytes:MAX_FILE});
+    return json(res,200,{engine:'REA',version:reaVersion,built,operations:Object.keys(OPERATIONS),androidReady:await checkJadx(),browser:'preflight-only; isolated Chromium and network egress not configured',deployment:'loopback-single-operator',publicSafe:false,multiTenant:false,maxUploadBytes:MAX_FILE});
    }
    if(req.method==='PUT'&&route.pathname==='/v1/artifact'){
     const project=safeSegment(route.searchParams.get('project')),filename=safeFilename(route.searchParams.get('name'));
