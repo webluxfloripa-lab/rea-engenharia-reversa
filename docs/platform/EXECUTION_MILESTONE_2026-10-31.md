@@ -10,17 +10,17 @@
 |---|---|---|
 | IA solicita REA e recebe Evidence | Gateway local REST com job e evidência JSON, testado com REA real | **Prova funcional de laboratório**; IA Sites não conectada |
 | JavaScript | `analyze-javascript-application` | **Teste real** via gateway GitHub Actions |
-| APK Android | `inspect-android-package`, JDK/JADX configuráveis, Dockerfile experimental | **Código de integração**, APK real não homologado |
-| Websites por URL | Preflight HTTPS/allowlist/DNS, sem navegação; CDP para abas já abertas | **Parcial**; navegação automática proibida até sandbox |
-| .NET | `inspect-managed-artifact` e `inspect-managed-members` | **Código de integração**; teste com DLL sintética no CI |
+| APK Android | REA inspect-android-package, JDK21/JADX com APK Appium de hash fixado | **Teste real com amostra aprovado**; produção ainda não homologada |
+| Websites por URL | Preflight de HTTPS/DNS e REA com Chromium/CDP em página de teste local | **Teste CDP real aprovado**; navegação de URLs públicas continua bloqueada |
+| .NET | REA inspect-managed-artifact/members | **Teste real de DLL compilada no CI aprovado**, outros formatos pendentes |
 | Inventário/formato | `inspect-artifact` | **Código de integração**; formatos exigem homologação |
-| HAR/SAZ/QLOG | `inspect-web-network-capture` offline | **Código de integração**; HAR sintético no CI |
+| HAR/SAZ/QLOG | REA inspect-web-network-capture offline | **HAR sintético aprovado**; SAZ/qlog ainda sem teste real |
 | MCP | REA 6.8.0 inclui servidor stdio/HTTP; orientação para conexão local | **Disponível no REA**; não conectado ao público |
 | Empresas e permissões | SQL de tenants, membros e papéis com integridade | **Esquema rascunho testado**, sem política de acesso ativa |
 | Planos/cotas | Tabelas, valores simulados gratuitos e constraints de não cobrança | **Rascunho**, sem produto faturável |
 | Observabilidade | Relatórios de execução por UUID e testes CI | **Laboratório**, sem logs centralizados/monitoramento |
 | Backups | Código e CI versionados no GitHub | **Dados de produção não cobertos** |
-| Mobile/desktop | Editor CodeMirror já existe na branch anterior | **Sem novos testes de aparelho real** |
+| Mobile/desktop | Editor CodeMirror da beta e UI local responsiva em localhost:4183 | **Código responsivo**, sem homologação em aparelhos reais |
 
 ## Fluxo de produção proposto (não implantado)
 
