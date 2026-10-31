@@ -50,6 +50,13 @@ const permittedExtensions=new Set(Object.values(allowedFiles).flat());
 
 function problem(message,status=400){const err=new Error(message);err.status=status;return err;}
 function json(res,status,body){const bytes=Buffer.from(JSON.stringify(body));res.writeHead(status,{'content-type':'application/json; charset=utf-8','content-length':bytes.length,'cache-control':'private, no-store','x-content-type-options':'nosniff','x-frame-options':'DENY','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'"});res.end(bytes);}
+const UI_FILES=new Map([['/',['index.html','text/html; charset=utf-8']],['/lab.js',['lab.js','application/javascript; charset=utf-8']],['/lab.css',['lab.css','text/css; charset=utf-8']]]);
+async function publicUi(res,pathname){
+ const [filename,type]=UI_FILES.get(pathname);
+ const bytes=await fs.readFile(path.join(here,'ui',filename));
+ res.writeHead(200,{'content-type':type,'content-length':bytes.length,'cache-control':'no-store','x-content-type-options':'nosniff','x-frame-options':'DENY','referrer-policy':'no-referrer','content-security-policy':"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'none'"});
+ res.end(bytes);
+}
 function safeSegment(value){if(typeof value!=='string'||! /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(value))throw problem('Invalid project identifier.');return value;}
 function safeFilename(value){
  if(typeof value!=='string'||value.length>140||! /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)||value.includes('..')||value.startsWith('.'))throw problem('Invalid filename.');
@@ -135,8 +142,9 @@ export async function createServer(){
  const built=await fs.stat(path.join(reaRoot,'dist/cli-runtime/cli.js')).then(s=>s.isFile()).catch(()=>false);
  const server=http.createServer(async(req,res)=>{
   try{
-   if(!authorized(req))return json(res,401,{error:'Authentication required'});
    const route=new URL(req.url||'/', 'http://localhost');
+   if(req.method==='GET'&&UI_FILES.has(route.pathname))return await publicUi(res,route.pathname);
+   if(!authorized(req))return json(res,401,{error:'Authentication required'});
    if(req.method==='POST'&&route.pathname==='/v1/website/preflight'){
     const input=await document(req),allow=(process.env.REA_APPROVED_WEBSITE_HOSTS||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean);
     if(!allow.length)throw problem('Website capture disabled: configure explicit approved hosts and sandboxed Chromium before navigation.',503);
