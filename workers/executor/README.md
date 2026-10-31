@@ -3,6 +3,12 @@
 Serviço Node.js 24 que invoca o **REA 6.8.0 real** usando uma API HTTP **somente em 127.0.0.1**.
 É uma etapa de integração e testes; **não é um backend SaaS público**.
 
+## Painel visual local (celular e PC)
+
+Com o executor iniciado, abra **http://127.0.0.1:4183/** no navegador do próprio computador. O painel tem layout responsivo, envio de arquivos, seletor de operação, status do job, cancelamento e download de evidências JSON. Informe o token privado no campo Conexão; ele não é gravado no armazenamento do browser.
+
+**Não exponha a porta 4183 na internet, em túnel público ou no roteador.** A interface responde apenas no loopback do computador, portanto o celular só terá acesso caso exista uma solução privada adicional projetada e autenticada; a interface responsiva ainda não foi homologada em dispositivo Android real.
+
 ## Operações reais disponíveis pela API local
 
 | Operation | CLI REA | Requisito |
@@ -67,6 +73,10 @@ docker build --file workers/executor/Dockerfile --tag rea-executor-lab .
 - O executor deve rodar numa sandbox Linux dedicada para cada job quando se tornar serviço SaaS.
 - Não existem pagamentos ativados, endpoints de cobrança ou licenças proprietárias concedidas pelo REA.
 - A interface `apps/web/` permanece usando AST/Babel para análise online, enquanto aguarda broker autenticado + fila durável + R2 privado + worker isolado.
+
+### Validação disponível no GitHub Actions
+
+Além dos testes de unidade, os workflows verificam o REA compilado com JavaScript, captura HAR sintética, DLL .NET compilada, Chromium/CDP em página local controlada e APK público Appium ApiDemos 6.0.18, cujo SHA-256 é validado antes do teste JADX/JDK21. Isso valida os fluxos específicos do laboratório, **não** o tratamento seguro de APKs arbitrários nem a segurança de um serviço público.
 
 ## Testes
 
