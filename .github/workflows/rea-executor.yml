@@ -26,6 +26,7 @@ jobs:
       - name: Code syntax
         run: |
           node --check workers/executor/server.mjs
+          node --check workers/executor/ui/lab.js
           node --check workers/executor/server.test.mjs
           node --check workers/executor/website-preflight.mjs
           node --check workers/executor/website-preflight.test.mjs
