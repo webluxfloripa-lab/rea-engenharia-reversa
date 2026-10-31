@@ -23,7 +23,7 @@ test('real REA 6.8.0 through authenticated executor on owned JS fixture',async()
   const input='export function sum(a, b) { return a + b; }\nexport default sum;\n';
   let r=await call('/v1/artifact?project=owned-fixture&name=module.js',{method:'PUT',body:input});assert.equal(r.status,201,await r.text());
   r=await call('/v1/jobs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project:'owned-fixture',file:'module.js',operation:'javascript'})});
-  assert.equal(r.status,202,await r.text());const {id}=await r.json();
+  const started=await r.text();assert.equal(r.status,202,started);const {id}=JSON.parse(started);
   let job;for(let i=0;i<120;i++){await new Promise(x=>setTimeout(x,500));job=await (await call('/v1/jobs?id='+id)).json();if(job.status!=='running')break;}
   assert.equal(job.status,'completed',JSON.stringify(job).slice(0,2400));assert.equal(job.operation,'javascript');
   assert.ok(job.result!==null);
