@@ -1,0 +1,25 @@
+✔ public capabilities and anonymous protection (7.930574ms)
+✔ create owner project, original preservation and atomic revision (5.401975ms)
+✔ tenant B cannot read, edit, export, restore, delete A (3.388046ms)
+✔ cross origin mutation denied (0.301494ms)
+✔ optimistic save / stale save / preserved source (1.188933ms)
+✔ restore v1 creates v3 and retains v2 (2.039608ms)
+✔ AST pipeline is real, hash and source lines, no target execution (15.72744ms)
+✔ malformed JS records partial status (0.575248ms)
+✔ URL validation rejects local IPv4 IPv6 credentials malformed / no fetch route (1.270243ms)
+✔ traversal hidden files null paths and binary extensions rejected (0.275396ms)
+✔ safe ZIP works; traversal, symlinks, oversized and bomb refused (7.947358ms)
+✔ HAR removes credential channels and arbitrary extension objects (0.477153ms)
+✔ no configured AI or APK engine is accurately reported (0.761774ms)
+✔ exports deterministic and private (5.132909ms)
+✔ catalog search controlled fixed endpoint and metadata only (1.114754ms)
+✔ archive/reopen and explicit permanent delete cascade (2.666622ms)
+✔ quota per user enforced (9.9216ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.734374
