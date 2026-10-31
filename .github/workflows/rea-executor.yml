@@ -29,4 +29,22 @@ jobs:
           node --check workers/executor/website-preflight.mjs
           node --check workers/executor/website-preflight.test.mjs
       - name: API tests with controlled REA CLI fixture
-        run: node --test workers/executor/*.test.mjs
+        run: node --test workers/executor/server.test.mjs workers/executor/website-preflight.test.mjs
+  real-rea:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: rea-main/package-lock.json
+      - name: Install actual REA 6.8.0 dependencies
+        working-directory: rea-main
+        run: npm ci --no-audit --no-fund
+      - name: Build actual REA
+        working-directory: rea-main
+        run: npm run build:cached
+      - name: Analyze authorized fixture via executor and inspect evidence
+        run: node --test workers/executor/real-smoke.test.mjs
