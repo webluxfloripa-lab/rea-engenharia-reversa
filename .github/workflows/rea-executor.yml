@@ -6,6 +6,7 @@ on:
     paths:
       - 'workers/executor/**'
       - '.github/workflows/rea-executor.yml'
+      - 'docs/platform/schema/**'
   pull_request:
     paths:
       - 'workers/executor/**'
@@ -48,3 +49,10 @@ jobs:
         run: npm run build:cached
       - name: Analyze authorized fixture via executor and inspect evidence
         run: node --test workers/executor/real-smoke.test.mjs
+  saas-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Schema integrity and constraints
+        run: python3 docs/platform/schema/test_schema.py
