@@ -40,7 +40,9 @@ const OPERATIONS=Object.freeze({
   'artifact':{type:'file',extensions:allowedFiles.artifact,command:'inspect-artifact'},
   'network-har':{type:'file',extensions:allowedFiles.har,command:'inspect-web-network-capture',format:'har'},
   'network-saz':{type:'file',extensions:allowedFiles.saz,command:'inspect-web-network-capture',format:'saz'},
-  'network-qlog':{type:'file',extensions:allowedFiles.qlog,command:'inspect-web-network-capture',format:'qlog'}
+  'network-qlog':{type:'file',extensions:allowedFiles.qlog,command:'inspect-web-network-capture',format:'qlog'},
+  'browser-targets':{type:'browser-list',command:'list-browser-targets'},
+  'browser-page':{type:'browser',command:'inspect-web-page'}
 });
 const permittedExtensions=new Set(Object.values(allowedFiles).flat());
 
@@ -82,10 +84,17 @@ function limitedText(source,limit,stop){
  let value='',size=0;source.on('data',c=>{size+=c.length;if(size>limit)stop('output_exceeded');else value+=c.toString('utf8');});return ()=>value;
 }
 async function runCli(job,artifact){
- const op=category(job.file,job.operation);
- const relative=path.resolve(artifact);
+ const op=OPERATIONS[job.operation];
  let args=[path.join(reaRoot,'scripts/rea.mjs'),op.command];
- if(op.type==='directory')args.push(path.dirname(relative));else args.push(relative);
+ if(op.type==='browser'||op.type==='browser-list'){
+  const cdp=process.env.REA_BROWSER_CDP||'';
+  if(!/^http:\/\/127\.0\.0\.1:(?:[1-9][0-9]{1,4})$/.test(cdp))throw new Error('Local CDP endpoint not configured');
+  args.push(cdp);
+  if(op.type==='browser')args.push(job.targetId);
+ }else{
+  const relative=path.resolve(artifact);
+  if(op.type==='directory')args.push(path.dirname(relative));else args.push(relative);
+ }
  if(op.format)args.push(op.format);
  args.push('--json');
  const env={PATH:process.env.PATH||'',HOME:process.env.HOME||os.homedir(),TEMP:process.env.TEMP||os.tmpdir(),TMPDIR:process.env.TMPDIR||os.tmpdir(),NO_COLOR:'1'};
@@ -130,7 +139,7 @@ export async function createServer(){
     return json(res,200,result);
    }
    if(req.method==='GET'&&route.pathname==='/v1/capabilities'){
-    return json(res,200,{engine:'REA',version:reaVersion,built,operations:Object.keys(OPERATIONS),androidReady:await checkJadx(),browser:'preflight-only; isolated Chromium and network egress not configured',deployment:'loopback-single-operator',publicSafe:false,multiTenant:false,maxUploadBytes:MAX_FILE});
+    return json(res,200,{engine:'REA',version:reaVersion,built,operations:Object.keys(OPERATIONS),androidReady:await checkJadx(),browser:process.env.REA_BROWSER_CDP?'local CDP inspection only, no navigation':'preflight-only; isolated Chromium not configured',deployment:'loopback-single-operator',publicSafe:false,multiTenant:false,maxUploadBytes:MAX_FILE});
    }
    if(req.method==='PUT'&&route.pathname==='/v1/artifact'){
     const project=safeSegment(route.searchParams.get('project')),filename=safeFilename(route.searchParams.get('name'));
@@ -144,12 +153,23 @@ export async function createServer(){
    if(req.method==='POST'&&route.pathname==='/v1/jobs'){
     if(!built)throw problem('REA build missing.',503);
     if(busy)throw problem('Executor busy. Try later.',429);
-    const input=await document(req),project=safeSegment(input.project),file=safeFilename(input.file),op=category(file,input.operation);
+    const input=await document(req),project=safeSegment(input.project),op=OPERATIONS[input.operation];
+    if(!op)throw problem('Unsupported operation.');
+    const browsing=op.type==='browser'||op.type==='browser-list';
+    const file=browsing?'browser-session':safeFilename(input.file);
+    if(!browsing)category(file,input.operation);
     if(op.requires==='jadx'&&!(await checkJadx()))throw problem('JADX is not configured. Set REA_JADX_MCP_JAR and install JDK 17+.',503);
-    const target=await confined(project,file);
-    if(!(await fs.stat(target).then(s=>s.isFile()).catch(()=>false)))throw problem('Artifact not found.',404);
-    if(op.type==='directory'&&!allowedFiles.javascript.includes(path.extname(file).toLowerCase()))throw problem('JavaScript input required.');
-    const id=randomUUID(),job={id,project,file,operation:input.operation,status:'running',startedAt:new Date().toISOString(),result:null,error:null};
+    const cdp=process.env.REA_BROWSER_CDP||'';
+    if(browsing&&!/^http:\/\/127\.0\.0\.1:(?:[1-9][0-9]{1,4})$/.test(cdp))throw problem('Only local dedicated CDP sessions are supported.',503);
+    const targetId=op.type==='browser'?input.targetId:null;
+    if(op.type==='browser'&&!(typeof targetId==='string'&&/^[A-Za-z0-9._-]{1,128}$/.test(targetId)))throw problem('Invalid browser target ID.');
+    let target=null;
+    if(!browsing){
+      target=await confined(project,file);
+      if(!(await fs.stat(target).then(s=>s.isFile()).catch(()=>false)))throw problem('Artifact not found.',404);
+      if(op.type==='directory'&&!allowedFiles.javascript.includes(path.extname(file).toLowerCase()))throw problem('JavaScript input required.');
+    }
+    const id=randomUUID(),job={id,project,file,operation:input.operation,targetId,status:'running',startedAt:new Date().toISOString(),result:null,error:null};
     jobs.set(id,job);busy=true;prune();
     void runCli(job,target).catch(e=>{job.status='failed';job.error=String(e.message);}).finally(()=>{busy=false;});
     return json(res,202,{id,status:job.status});
