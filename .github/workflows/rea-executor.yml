@@ -47,7 +47,17 @@ jobs:
       - name: Build actual REA
         working-directory: rea-main
         run: npm run build:cached
-      - name: Analyze authorized fixture via executor and inspect evidence
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build safe local managed assembly
+        run: |
+          dotnet new classlib --framework net8.0 --name Fixture --output /tmp/rea-dotnet --no-restore
+          dotnet restore /tmp/rea-dotnet/Fixture.csproj
+          dotnet build /tmp/rea-dotnet/Fixture.csproj -c Release --no-restore
+      - name: Analyze authorized JS, HAR and .NET fixtures via real REA
+        env:
+          REA_SMOKE_DOTNET_ASSEMBLY: /tmp/rea-dotnet/bin/Release/net8.0/Fixture.dll
         run: node --test workers/executor/real-smoke.test.mjs
   saas-schema:
     runs-on: ubuntu-latest
