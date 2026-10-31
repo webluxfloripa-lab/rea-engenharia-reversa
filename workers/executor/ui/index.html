@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>REA Executor | Laboratório de Análise</title>
+<link rel="stylesheet" href="/lab.css">
+<script src="/lab.js" defer></script>
+</head>
+<body>
+<div class="shell">
+<aside class="side">
+ <a class="brand" href="/"><span class="mark">R·</span><span><b>REA STUDIO</b><small>NATIVE ENGINE LAB</small></span></a>
+ <div class="nav"><a href="#overview">Visão geral</a><a href="#investigate">Nova investigação</a><a href="#result">Evidências</a><a href="#security">Segurança</a></div>
+ <div class="side-bottom">LABORATÓRIO PRIVADO<br><span>Motor REA no próprio computador. Não é o portal SaaS público.</span></div>
+</aside>
+<main>
+ <header><span>REA STUDIO <span class="slash">/</span> Executor local</span><span id="connect-state" class="status">Desconectado</span></header>
+ <div class="inner">
+ <div class="intro" id="overview"><p class="eyebrow">INVESTIGATION WORKSPACE · V0.1</p><h1>Investigue com <em>evidências.</em></h1><p>Carregue artefatos que você tem permissão para analisar. O REA processa localmente e devolve resultados verificáveis.</p></div>
+ <div class="metrics"><div><small>MOTOR</small><strong id="metric-engine">REA —</strong><span id="metric-ready">Conecte primeiro</span></div><div><small>OPERAÇÕES</small><strong id="metric-ops">—</strong><span>Comandos permitidos</span></div><div><small>JOBS</small><strong id="metric-jobs">0</strong><span>Esta sessão</span></div></div>
+ <section class="panel auth">
+  <div class="title"><div><span class="kicker">01 / AMBIENTE</span><h2>Conexão privada</h2><p>Digite o segredo definido em <code>REA_EXECUTOR_TOKEN</code>. Ele permanece apenas na memória desta aba.</p></div><span class="pill">Loopback</span></div>
+  <div class="auth-row"><label><span>Token do executor</span><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Cole seu token privado"></label><button id="connect" class="primary">Conectar</button></div>
+  <p class="notice" id="feedback" role="status" aria-live="polite">Conecte antes de enviar arquivos.</p>
+ </section>
+ <section class="panel" id="investigate">
+  <div class="title"><div><span class="kicker">02 / INVESTIGAÇÃO</span><h2>Selecionar artefato</h2><p>Escolha uma operação e envie o arquivo autorizado. Website/CDP usa uma aba existente do Chromium local.</p></div></div>
+  <div class="form">
+   <label><span>Projeto</span><input id="project" value="meu-projeto" maxlength="64" spellcheck="false"></label>
+   <label><span>Operação REA</span><select id="operation">
+    <option value="javascript">JavaScript / TypeScript</option>
+    <option value="android-package">Android APK (JADX)</option>
+    <option value="managed-artifact">.NET — assembly</option>
+    <option value="managed-members">.NET — membros/classes</option>
+    <option value="artifact">Artefatos e pacotes</option>
+    <option value="network-har">Captura HAR</option>
+    <option value="network-saz">Captura SAZ</option>
+    <option value="network-qlog">Captura qlog</option>
+    <option value="browser-targets">Chromium — listar abas</option>
+    <option value="browser-page">Chromium — inspecionar aba</option>
+   </select></label>
+   <label id="artifact-field"><span>Arquivo para análise</span><input id="file" type="file"><small>Até 64 MB por arquivo. Nenhum arquivo é publicado no GitHub.</small></label>
+   <label id="browser-field" hidden><span>ID de aba Chromium</span><input id="target" placeholder="Copie o targetId retornado por Listar abas" spellcheck="false"></label>
+   <div class="actions"><button id="upload" class="secondary">Enviar arquivo</button><button id="run" class="primary">Executar análise</button><button id="cancel" class="secondary" disabled>Cancelar</button></div>
+  </div>
+ </section>
+ <section class="panel" id="result">
+  <div class="title"><div><span class="kicker">03 / EVIDÊNCIAS</span><h2>Resultado da investigação</h2><p>Status real, dados JSON e limitações retornadas pelo motor REA.</p></div><button id="download" class="secondary small" disabled>Baixar JSON</button></div>
+  <div class="job-state" id="job-state">Nenhum trabalho iniciado.</div><pre id="output">O resultado será exibido aqui depois da análise.</pre>
+ </section>
+ <section class="panel" id="security">
+  <div class="title"><div><span class="kicker">SEGURANÇA</span><h2>Ambiente de laboratório</h2></div></div>
+  <p>Este executor é privativo, de operador único e não foi projetado para receber arquivos anônimos da internet. Navegação automatizada por URL continua desabilitada até a existência de sandbox e controle de saída. Não use para contornar licenças, DRM, autenticação ou acessar software sem autorização.</p>
+ </section>
+ <footer><span>REA Studio · Native Lab</span><span>Uso local autorizado · Nunca exponha esta porta publicamente</span></footer>
+ </div>
+</main>
+</div>
+</body>
+</html>
