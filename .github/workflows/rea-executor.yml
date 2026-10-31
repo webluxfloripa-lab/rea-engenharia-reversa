@@ -30,7 +30,7 @@ jobs:
           node --check workers/executor/website-preflight.mjs
           node --check workers/executor/website-preflight.test.mjs
       - name: API tests with controlled REA CLI fixture
-        run: node --test workers/executor/server.test.mjs workers/executor/website-preflight.test.mjs
+        run: node --test workers/executor/server.test.mjs workers/executor/website-preflight.test.mjs workers/executor/tenant-policy.test.mjs
   real-rea:
     runs-on: ubuntu-latest
     timeout-minutes: 30
