@@ -30,14 +30,17 @@ test('REA inspects owned Chromium fixture through loopback CDP; no external URL 
   const chosen=list.find(x=>x.type==='page'&&x.url===fixtureUrl);assert.match(chosen.id,/^[a-zA-Z0-9._-]+$/);
   const secret='REA-BROWSER-TEST-'+('k'.repeat(60));
   executor=spawn(process.execPath,[path.join(root,'workers/executor/server.mjs')],{env:{...process.env,REA_EXECUTOR_TOKEN:secret,REA_EXECUTOR_REA_DIR:path.join(root,'rea-main'),REA_EXECUTOR_DATA_DIR:path.join(temp,'data'),REA_EXECUTOR_PORT:'0',REA_BROWSER_CDP:cdp},stdio:['ignore','pipe','pipe']});
-  let stdout='';const base=await until(()=>new Promise(resolve=>{
-   executor.stdout.once('data',b=>{stdout+=b.toString();const m=stdout.match(/REA_EXECUTOR_READY (http:\/\/127\.0\.0\.1:\d+)/);resolve(m?.[1]);});
-  }),15,100);
+  let stdout='';
+  const base=await new Promise((resolve,reject)=>{
+   const timer=setTimeout(()=>reject(Error('Executor startup timeout: '+stdout)),10000);
+   executor.stdout.on('data',b=>{stdout+=b.toString();const m=stdout.match(/REA_EXECUTOR_READY (http:\/\/127\.0\.0\.1:\d+)/);if(m){clearTimeout(timer);resolve(m[1]);}});
+   executor.on('exit',code=>{clearTimeout(timer);reject(Error('Executor exit '+code));});
+  });
   const req=(route,options={})=>fetch(base+route,{...options,headers:{Authorization:'Bearer '+secret,...options.headers}});
   async function analyze(operation,targetId){
    const started=await req('/v1/jobs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project:'owned-web',operation,targetId})});
-   assert.equal(started.status,202,await started.text());
-   const {id}=await started.json();
+   const text=await started.text();assert.equal(started.status,202,text);
+   const {id}=JSON.parse(text);
    return until(async()=>{const job=await (await req('/v1/jobs?id='+id)).json();return job.status==='running'?null:job;},120,500);
   }
   const targets=await analyze('browser-targets');
