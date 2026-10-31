@@ -15,7 +15,7 @@ test('executor requires token, validates paths, runs REA commands and returns pe
  await mkdir(path.join(rea,'dist/cli-runtime'),{recursive:true});
  await writeFile(path.join(rea,'package.json'),JSON.stringify({version:'6.8.0'}));
  await writeFile(path.join(rea,'dist/cli-runtime/cli.js'),'// fixture');
- await writeFile(path.join(rea,'scripts/rea.mjs'),`import fs from 'node:fs';const [name,target]=process.argv.slice(2);console.log(JSON.stringify({ok:true,command:name,targetType:fs.statSync(target).isDirectory()?'directory':'file'}));`);
+ await writeFile(path.join(rea,'scripts/rea.mjs'),`import fs from 'node:fs';const [name,target]=process.argv.slice(2);if(target.endsWith('slow.bin'))await new Promise(done=>setTimeout(done,3000));console.log(JSON.stringify({ok:true,command:name,targetType:fs.statSync(target).isDirectory()?'directory':'file'}));`);
  const child=spawn(process.execPath,[path.join(here,'server.mjs')],{env:{...process.env,REA_EXECUTOR_TOKEN:key,REA_EXECUTOR_DATA_DIR:data,REA_EXECUTOR_REA_DIR:rea,REA_EXECUTOR_PORT:'0',REA_EXECUTOR_HOST:'127.0.0.1'},stdio:['ignore','pipe','pipe']});
  let stderr='',stdout='',base='';
  child.stderr.on('data',x=>stderr+=x.toString());
@@ -28,6 +28,7 @@ test('executor requires token, validates paths, runs REA commands and returns pe
   const api=(pathname,opt={})=>fetch(base+pathname,{...opt,headers:{Authorization:'Bearer '+key,...opt.headers}});
   let r=await fetch(base+'/v1/capabilities');assert.equal(r.status,401);
   r=await api('/v1/capabilities');assert.equal(r.status,200);assert.equal((await r.json()).version,'6.8.0');
+  r=await api('/v1/health');assert.equal(r.status,200);assert.equal((await r.json()).mode,'local-only');
   r=await api('/v1/artifact?project=cliente&name=src%2Fother.js',{method:'PUT',body:'x'});assert.equal(r.status,400);
   r=await api('/v1/artifact?project=cliente&name=app.js',{method:'PUT',body:'export default 1;'});assert.equal(r.status,201);
   r=await api('/v1/artifact?project=cliente&name=app.js',{method:'PUT',body:'overwrite'});assert.equal(r.status,409);
@@ -43,5 +44,12 @@ test('executor requires token, validates paths, runs REA commands and returns pe
   assert.equal(job.status,'completed',JSON.stringify(job));assert.equal(job.result.command,'inspect-web-network-capture');
   r=await api('/v1/jobs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project:'cliente',file:'sample.har',operation:'android-package'})});assert.equal(r.status,400);
   r=await api('/v1/jobs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project:'cliente',file:'app.js',operation:'nonexistent'})});assert.equal(r.status,400);
+  r=await api('/v1/artifact?project=cliente&name=slow.bin',{method:'PUT',body:Buffer.from('SAFE-NONEXECUTABLE-FIXTURE')});assert.equal(r.status,201);
+  r=await api('/v1/jobs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project:'cliente',file:'slow.bin',operation:'artifact'})});assert.equal(r.status,202);
+  const cancelId=(await r.json()).id;
+  r=await api('/v1/jobs/cancel',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:cancelId})});assert.equal(r.status,202);
+  let stopped;
+  for(let i=0;i<60;i++){await new Promise(done=>setTimeout(done,50));stopped=await (await api('/v1/jobs?id='+cancelId)).json();if(stopped.status!=='running')break;}
+  assert.equal(stopped.status,'cancelled',JSON.stringify(stopped));
  }finally{child.kill();await rm(folder,{recursive:true,force:true});}
 });
