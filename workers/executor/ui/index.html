@@ -50,6 +50,11 @@
   <div class="title"><div><span class="kicker">03 / EVIDÊNCIAS</span><h2>Resultado da investigação</h2><p>Status real, dados JSON e limitações retornadas pelo motor REA.</p></div><button id="download" class="secondary small" disabled>Baixar JSON</button></div>
   <div class="job-state" id="job-state">Nenhum trabalho iniciado.</div><pre id="output">O resultado será exibido aqui depois da análise.</pre>
  </section>
+ <section class="panel" id="website">
+  <div class="title"><div><span class="kicker">04 / PRÉ-VALIDAÇÃO WEB</span><h2>Verificar URL autorizada</h2><p>Verifica HTTPS, domínio permitido e DNS. Não visita nem captura o website.</p></div></div>
+  <div class="auth-row"><label><span>URL HTTPS</span><input id="website" type="url" autocomplete="off" placeholder="https://empresa-autorizada.com.br"></label><button id="check-web" class="secondary">Verificar URL</button></div>
+  <pre id="website-result">Para habilitar esta verificação, configure REA_APPROVED_WEBSITE_HOSTS no executor.</pre>
+ </section>
  <section class="panel" id="security">
   <div class="title"><div><span class="kicker">SEGURANÇA</span><h2>Ambiente de laboratório</h2></div></div>
   <p>Este executor é privativo, de operador único e não foi projetado para receber arquivos anônimos da internet. Navegação automatizada por URL continua desabilitada até a existência de sandbox e controle de saída. Não use para contornar licenças, DRM, autenticação ou acessar software sem autorização.</p>
