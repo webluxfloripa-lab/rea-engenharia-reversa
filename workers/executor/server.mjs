@@ -21,6 +21,8 @@ const token=process.env.REA_EXECUTOR_TOKEN||'';
 const host=process.env.REA_EXECUTOR_HOST||'127.0.0.1';
 const port=Number(process.env.REA_EXECUTOR_PORT||4183);
 const MAX_FILE=64*1024*1024;
+const MAX_PROJECT=256*1024*1024;
+const MAX_PROJECT_FILES=60;
 const MAX_RESPONSE=8*1024*1024;
 const TIMEOUT=180000;
 const jobs=new Map();
@@ -104,6 +106,8 @@ async function runCli(job,artifact){
   const child=spawn(process.execPath,args,{cwd:reaRoot,env,stdio:['ignore','pipe','pipe'],windowsHide:true,detached:process.platform!=='win32'});
   let reason=null;
   const kill=why=>{if(reason)return;reason=why;try{if(process.platform!=='win32')process.kill(-child.pid,'SIGKILL');else child.kill('SIGKILL');}catch{}};
+  job.cancel=kill;
+  if(job.cancelRequested)kill('cancelled_by_user');
   const stdout=limitedText(child.stdout,MAX_RESPONSE,kill);
   const stderr=limitedText(child.stderr,64*1024,kill);
   const timer=setTimeout(()=>kill('timeout'),TIMEOUT);
@@ -111,7 +115,8 @@ async function runCli(job,artifact){
    clearTimeout(timer);
    let parsed;try{parsed=JSON.parse(stdout());}catch{}
    const ok=!reason&&code===0&&parsed!==undefined;
-   job.status=ok?'completed':'failed';job.finishedAt=new Date().toISOString();
+   job.status=ok?'completed':reason==='cancelled_by_user'?'cancelled':'failed';job.finishedAt=new Date().toISOString();
+   delete job.cancel;
    job.result=ok?parsed:null;
    job.error=ok?null:reason||('REA exited '+code+(signal?' ('+signal+')':'')+'. '+stderr().slice(0,2500));
    try{await fs.writeFile(path.join(dataRoot,'reports',job.id+'.json'),JSON.stringify({id:job.id,operation:job.operation,project:job.project,file:job.file,status:job.status,finishedAt:job.finishedAt,result:job.result,error:job.error}),{mode:0o600,flag:'wx'});}catch{job.error=job.error||'Report persistence failed';}
@@ -138,6 +143,9 @@ export async function createServer(){
     let result;try{result=await preflightWebsite(input.url,{allowedHosts:allow});}catch(e){throw problem(e.message,400);}
     return json(res,200,result);
    }
+   if(req.method==='GET'&&route.pathname==='/v1/health'){
+    return json(res,200,{service:'rea-executor',ready:built,busy,jobsInMemory:jobs.size,mode:'local-only',timestamp:new Date().toISOString()});
+   }
    if(req.method==='GET'&&route.pathname==='/v1/capabilities'){
     return json(res,200,{engine:'REA',version:reaVersion,built,operations:Object.keys(OPERATIONS),androidReady:await checkJadx(),browser:process.env.REA_BROWSER_CDP?'local CDP inspection only, no navigation':'preflight-only; isolated Chromium not configured',deployment:'loopback-single-operator',publicSafe:false,multiTenant:false,maxUploadBytes:MAX_FILE});
    }
@@ -147,6 +155,11 @@ export async function createServer(){
     if(!contents.length)throw problem('Empty upload.');
     const file=await confined(project,filename,true);
     const exists=await fs.lstat(file).catch(()=>null);if(exists)throw problem('Refusing to overwrite an existing artifact.',409);
+    const entries=await fs.readdir(path.dirname(file),{withFileTypes:true});
+    if(entries.length>=MAX_PROJECT_FILES)throw problem('Project file count limit reached.',413);
+    let used=0;
+    for(const item of entries){if(!item.isFile())throw problem('Unexpected project filesystem entry.',403);used+=(await fs.stat(path.join(path.dirname(file),item.name))).size;if(used>MAX_PROJECT)break;}
+    if(used+contents.length>MAX_PROJECT)throw problem('Project storage quota reached.',413);
     await fs.writeFile(file,contents,{flag:'wx',mode:0o600});
     return json(res,201,{project,file:filename,bytes:contents.length,sha256:createHash('sha256').update(contents).digest('hex')});
    }
@@ -169,10 +182,18 @@ export async function createServer(){
       if(!(await fs.stat(target).then(s=>s.isFile()).catch(()=>false)))throw problem('Artifact not found.',404);
       if(op.type==='directory'&&!allowedFiles.javascript.includes(path.extname(file).toLowerCase()))throw problem('JavaScript input required.');
     }
-    const id=randomUUID(),job={id,project,file,operation:input.operation,targetId,status:'running',startedAt:new Date().toISOString(),result:null,error:null};
+    const id=randomUUID(),job={id,project,file,operation:input.operation,targetId,status:'running',startedAt:new Date().toISOString(),result:null,error:null,cancelRequested:false};
     jobs.set(id,job);busy=true;prune();
     void runCli(job,target).catch(e=>{job.status='failed';job.error=String(e.message);}).finally(()=>{busy=false;});
     return json(res,202,{id,status:job.status});
+   }
+   if(req.method==='POST'&&route.pathname==='/v1/jobs/cancel'){
+    const input=await document(req);const id=input.id;
+    if(typeof id!=='string'||! /^[0-9a-f-]{36}$/.test(id))throw problem('Invalid job id.');
+    const job=jobs.get(id);if(!job)throw problem('Job not found.',404);
+    if(job.status!=='running')throw problem('Job is no longer running.',409);
+    job.cancelRequested=true;job.cancel?.('cancelled_by_user');
+    return json(res,202,{id,cancellationRequested:true});
    }
    if(req.method==='GET'&&route.pathname==='/v1/jobs'){
     const id=route.searchParams.get('id');if(!id||! /^[0-9a-f-]{36}$/.test(id))throw problem('Invalid job id.');
