@@ -26,6 +26,9 @@ test('executor requires token, validates paths, runs REA commands and returns pe
    child.on('exit',code=>{clearTimeout(timer);reject(Error('unexpected exit '+code+' '+stderr))});
   });
   const api=(pathname,opt={})=>fetch(base+pathname,{...opt,headers:{Authorization:'Bearer '+key,...opt.headers}});
+  const page=await fetch(base+'/');assert.equal(page.status,200);assert.match(await page.text(),/REA STUDIO/);
+  const script=await fetch(base+'/lab.js');assert.equal(script.status,200);assert.match(await script.text(),/startAnalysis/);
+  const css=await fetch(base+'/lab.css');assert.equal(css.status,200);
   let r=await fetch(base+'/v1/capabilities');assert.equal(r.status,401);
   r=await api('/v1/capabilities');assert.equal(r.status,200);assert.equal((await r.json()).version,'6.8.0');
   r=await api('/v1/health');assert.equal(r.status,200);assert.equal((await r.json()).mode,'local-only');
