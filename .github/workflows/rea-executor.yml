@@ -1,0 +1,30 @@
+name: REA Executor - segurança e integracao
+on:
+  push:
+    branches:
+      - feature/rea-executor-hardened-20261031
+    paths:
+      - 'workers/executor/**'
+      - '.github/workflows/rea-executor.yml'
+  pull_request:
+    paths:
+      - 'workers/executor/**'
+      - '.github/workflows/rea-executor.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Code syntax
+        run: |
+          node --check workers/executor/server.mjs
+          node --check workers/executor/server.test.mjs
+      - name: API tests with controlled REA CLI fixture
+        run: node --test workers/executor/server.test.mjs
