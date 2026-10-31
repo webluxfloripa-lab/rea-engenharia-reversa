@@ -12,3 +12,8 @@ export const events = sqliteTable('audit_events', {
   id: text('id').primaryKey(), owner: text('owner').notNull(), project: text('project'), action: text('action').notNull(), created:text('created').notNull()
 },t=>[index('audit_owner').on(t.owner,t.created)]);
 export const limits = sqliteTable('rate_limits',{owner:text('owner').primaryKey(),window:integer('window').notNull(),count:integer('count').notNull()});
+export const assistantThreads = sqliteTable('assistant_threads', {
+  project:text('project').primaryKey().references(()=>projects.id,{onDelete:'cascade'}),
+  owner:text('owner').notNull(),version:integer('version').notNull().default(1),
+  payload:text('payload').notNull(),updated:text('updated').notNull()
+},t=>[index('assistant_owner').on(t.owner)]);

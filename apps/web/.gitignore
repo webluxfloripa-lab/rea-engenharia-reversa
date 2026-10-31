@@ -43,3 +43,6 @@ yarn-error.log*
 
 # OS metadata
 .DS_Store
+
+# Generated from the preserved REA source before tests/build.
+/lib/data/rea-knowledge.json

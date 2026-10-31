@@ -1,0 +1,45 @@
+✔ AI availability does not allow anonymous requests (10.244364ms)
+✔ another tenant and cross-origin cannot send project code (4.384011ms)
+✔ consent, length, file ownership and revision validation happen before network (4.063788ms)
+✔ only opted-in saved file is sent; no auth, paid routing, mutations or content logging (19.68968ms)
+✔ no file is included by default (10.528832ms)
+✔ shared quota is atomic across concurrent users (9.143962ms)
+✔ large files and archived projects are not submitted (3.167214ms)
+✔ provider failure has no paid fallback and no leaked provider details (1.070006ms)
+✔ malformed, empty and oversized provider output are rejected (1.113742ms)
+✔ public capabilities and anonymous protection (5.051469ms)
+✔ create owner project, original preservation and atomic revision (4.493187ms)
+✔ tenant B cannot read, edit, export, restore, delete A (4.167204ms)
+✔ cross origin mutation denied (1.337931ms)
+✔ optimistic save / stale save / preserved source (1.452364ms)
+✔ restore v1 creates v3 and retains v2 (2.484322ms)
+✔ AST pipeline is real, hash and source lines, no target execution (16.61827ms)
+✔ malformed JS records partial status (0.566496ms)
+✔ URL validation rejects local IPv4 IPv6 credentials malformed / no fetch route (1.330299ms)
+✔ traversal hidden files null paths and binary extensions rejected (0.29155ms)
+✔ safe ZIP works; traversal, symlinks, oversized and bomb refused (7.857427ms)
+✔ HAR removes credential channels and arbitrary extension objects (0.762902ms)
+✔ free AI configuration, blocked APK and disabled billing are reported (1.018589ms)
+✔ exports deterministic and private (5.585487ms)
+✔ catalog search controlled fixed endpoint and metadata only (1.700678ms)
+✔ archive/reopen and explicit permanent delete cascade (2.506425ms)
+✔ quota per user enforced (9.814323ms)
+✔ REA repository retrieval returns actual pinned files and line references (42.495325ms)
+✔ GitHub integration uses fixed public branch and no credential (6.594191ms)
+✔ conversations persist by owner, and recent history can be excluded (10.077802ms)
+✔ thread compare-and-swap prevents cross-tab overwrites and preserves ten turns (2.717304ms)
+✔ selected-file analysis and source retrieval are real and do not include other private files (19.645833ms)
+✔ strict proposal schema rejects extra keys, changed paths and forbidden files (0.635921ms)
+✔ generation is read-only until reviewed; application creates revision and preserves originals (8.172675ms)
+✔ new-file proposal can use another selected file as context (4.091ms)
+✔ stale or syntactically invalid proposals cannot change files (7.766956ms)
+✔ model output cannot select another file or cause command execution (2.988424ms)
+✔ deleting a project removes its private AI conversation (2.207134ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 270.029577

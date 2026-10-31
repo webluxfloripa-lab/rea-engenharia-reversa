@@ -1,3 +1,7 @@
+# Atualização REA IA — 31/10/2026
+
+A versão publicada atual é 5. Leia primeiro [os checkpoints atuais](checkpoints/03_CONTINUIDADE_CODEX.md). IA, GitHub/RAG, memória privada e propostas revisáveis foram implementados; as seções abaixo registram a entrega histórica anterior.
+
 # Mapa de continuidade — REA Studio 2.0
 
 ## Leia antes de alterar

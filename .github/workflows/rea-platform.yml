@@ -59,6 +59,8 @@ jobs:
           node-version: '24.22.1'
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
+      - name: Build pinned public REA knowledge index
+        run: node scripts/sync-rea-knowledge.mjs --repo ../..
       - run: corepack pnpm test
       - run: corepack pnpm exec tsc --noEmit
       - run: corepack pnpm build

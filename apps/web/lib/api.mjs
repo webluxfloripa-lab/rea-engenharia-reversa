@@ -1,13 +1,18 @@
 import {LIMITS,fail,text,validateFiles,readJson,checkOrigin,validateTarget,sanitizeHar,sha256} from './security.mjs';
 import {analyze} from './analyze.mjs';
 import {exportZip,importZip} from './zip.mjs';
+import {aiCapability} from './ai.mjs';
+import {knowledgeStatus,searchKnowledge,checkGitHub} from './knowledge.mjs';
+import {readThread} from './assistant-memory.mjs';
+import {runAssistant} from './assistant-orchestrator.mjs';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
 const visible=r=>({...JSON.parse(r.payload),id:r.id,name:r.name,version:r.version,archived:!!r.archived,created:r.created,updated:r.updated});
-export const capabilities={code:{state:'available',engine:'Studio AST / Babel'},rea:{state:'offline',reason:'REA 6.8.0 disponível no laboratório local; worker de produção não conectado.'},website:{state:'blocked',reason:'Exige Chromium isolado e proteção de rede/DNS. Nenhum destino será acessado.'},apk:{state:'blocked',reason:'Exige worker isolado com JDK/JADX e quarentena. Upload binário não habilitado.'},ai:{state:'unavailable',reason:'Provedor e orçamento não configurados. Nenhum código é enviado a IA.'},appName:{state:'available',reason:'Metadados públicos da App Store (iOS), sem APK ou código.'},billing:{state:'disabled'}};
+export const capabilities={code:{state:'available',engine:'Studio AST / Babel'},rea:{state:'offline',reason:'REA 6.8.0 disponível no laboratório local; worker de produção não conectado.'},website:{state:'blocked',reason:'Exige Chromium isolado e proteção de rede/DNS. Nenhum destino será acessado.'},apk:{state:'blocked',reason:'Exige worker isolado com JDK/JADX e quarentena. Upload binário não habilitado.'},ai:aiCapability,appName:{state:'available',reason:'Metadados públicos da App Store (iOS), sem APK ou código.'},billing:{state:'disabled'}};
 export async function handle(req,{db,user,fetcher=fetch}){
  try{
   const url=new URL(req.url),parts=url.pathname.replace(/^\/api\/v1\/?/,'').split('/').filter(Boolean),method=req.method;
   if(parts[0]==='capabilities'&&method==='GET')return json({capabilities,limits:LIMITS});
+  if(parts[0]==='knowledge'&&parts.length===1&&method==='GET')return json({knowledge:knowledgeStatus(),sources:url.searchParams.has('q')?searchKnowledge(text(url.searchParams.get('q'),300,'Consulta')):[]});
   if(parts[0]==='me'&&method==='GET')return json({user:user?{name:user.displayName,email:user.email}:null,limits:LIMITS});
   if(!user?.userId)fail('Entre com sua conta para acessar projetos privados.',401);
   if(!db)fail('Armazenamento indisponível.',503);
@@ -19,6 +24,12 @@ export async function handle(req,{db,user,fetcher=fetch}){
     if(quota.count>LIMITS.perMinute)fail('Limite de pedidos atingido. Aguarde um minuto.',429);
   }
   const audit=async(action,project=null)=>db.prepare('INSERT INTO audit_events(id,owner,project,action,created) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),owner,project,action,new Date().toISOString()).run();
+  if(parts[0]==='knowledge'&&parts[1]==='check-github'&&method==='POST'){
+    const now=Date.now();
+    const slot=await db.prepare('INSERT INTO rate_limits(owner,window,count) VALUES(?,?,1) ON CONFLICT(owner) DO UPDATE SET window=excluded.window,count=1 WHERE rate_limits.window<=? RETURNING count').bind('service:github-check',now+60000,now).first();
+    if(!slot)fail('Aguarde um minuto antes de verificar o GitHub novamente.',429);
+    return json(await checkGitHub(fetcher));
+  }
   if(parts[0]==='audit'&&method==='GET')return json({events:(await db.prepare('SELECT action,project,created FROM audit_events WHERE owner=? ORDER BY created DESC LIMIT 60').bind(owner).all()).results});
   if(parts[0]==='app-search'&&method==='POST'){
     const b=await readJson(req),term=text(b.term,80).trim();if(term.length<2)fail('Digite pelo menos dois caracteres.');
@@ -45,6 +56,7 @@ export async function handle(req,{db,user,fetcher=fetch}){
   const id=parts[1],row=await db.prepare('SELECT * FROM projects WHERE id=? AND owner=?').bind(id,owner).first();
   if(!row)fail('Projeto não encontrado.',404);let doc=JSON.parse(row.payload);
   if(method==='GET'){
+    if(parts[2]==='assistant'&&parts.length===3)return json(await readThread(db,id,owner));
     if(parts[2]==='history')return json({revisions:(await db.prepare('SELECT version,label,created FROM revisions WHERE project=? ORDER BY version DESC').bind(id).all()).results});
     if(parts[2]==='revision') {const rev=Number(url.searchParams.get('version'));const r=await db.prepare('SELECT payload,version FROM revisions WHERE project=? AND version=?').bind(id,rev).first();if(!r)fail('Versão inexistente.',404);return json({...JSON.parse(r.payload),version:r.version});}
     if(parts[2]==='export'){const bytes=exportZip(visible(row));await audit('project.export',id);return new Response(bytes,{headers:{'Content-Type':'application/zip','Content-Disposition':'attachment; filename="rea-projeto.zip"','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});}
@@ -57,6 +69,12 @@ export async function handle(req,{db,user,fetcher=fetch}){
     const deleted=await db.prepare('DELETE FROM projects WHERE id=? AND owner=? AND version=? RETURNING id').bind(id,owner,b.version).first();if(!deleted)fail('Conflito de versão.',409);await audit('project.delete',id);return json({deleted:true});
   }
   if(method!=='POST')fail('Método não permitido.',405);
+  if(parts[2]==='assistant'&&parts.length===3){
+    if(row.archived)fail('Reabra o projeto para usar a IA.',409);
+    const result=await runAssistant({db,owner,project:id,files:doc.files,body:b,fetcher});
+    await audit('ai.request',id);
+    return json(result);
+  }
   if(row.version>=LIMITS.revisions)fail('Limite de 80 revisões. Exporte e crie outro projeto.',409);
   const action=parts[2];let name=row.name,archived=row.archived;
   if(row.archived&&!['archive','restore'].includes(action))fail('Restaure o projeto arquivado antes de editar.',409);
@@ -67,6 +85,17 @@ export async function handle(req,{db,user,fetcher=fetch}){
     doc.files=validateFiles([...doc.files,...incoming]);doc.original=[...doc.original,...incoming];doc.report=null;doc.label='Importação autorizada';
   }
   else if(action==='analyze'){doc.report=await analyze(doc.files);doc.label='Análise estática';}
+  else if(action==='apply-ai'){
+    if(b.confirm!==true||typeof b.messageId!=='string')fail('Revise e confirme a aplicação da proposta.');
+    const thread=await readThread(db,id,owner),message=thread.messages.find(m=>m.id===b.messageId&&m.role==='assistant'),proposal=message?.proposal;
+    if(!proposal||proposal.baseVersion!==row.version)fail('Proposta ausente ou desatualizada. Gere uma nova proposta sobre a versão atual.',409);
+    const current=doc.files.find(f=>f.path===proposal.path);
+    if((current?await sha256(current.content):null)!==proposal.baseHash)fail('O arquivo mudou desde a proposta. Gere uma nova versão.',409);
+    const report=await analyze([{path:proposal.path,content:proposal.content}]);
+    if(report.warnings.length)fail('A proposta contém erros sintáticos e não pode ser aplicada.');
+    doc.files=validateFiles([...doc.files.filter(f=>f.path!==proposal.path),{path:proposal.path,content:proposal.content}]);
+    doc.report=null;doc.label='Proposta IA aplicada: '+proposal.path;
+  }
   else if(action==='checkpoint'){doc.label=text(b.label||'Checkpoint',100);}
   else if(action==='restore'){
     if(!Number.isInteger(b.targetVersion))fail('Versão inválida.');const rev=await db.prepare('SELECT payload FROM revisions WHERE project=? AND version=?').bind(id,b.targetVersion).first();if(!rev)fail('Versão inexistente.',404);const previous=JSON.parse(rev.payload);doc={...previous,original:doc.original,label:`Restaurada v${b.targetVersion} como nova revisão`};
