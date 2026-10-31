@@ -1,0 +1,117 @@
+name: REA Executor - segurança e integracao
+on:
+  push:
+    branches:
+      - feature/rea-executor-hardened-20261031
+    paths:
+      - 'workers/executor/**'
+      - '.github/workflows/rea-executor.yml'
+      - 'docs/platform/schema/**'
+  pull_request:
+    paths:
+      - 'workers/executor/**'
+      - '.github/workflows/rea-executor.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Code syntax
+        run: |
+          node --check workers/executor/server.mjs
+          node --check workers/executor/ui/lab.js
+          node --check workers/executor/server.test.mjs
+          node --check workers/executor/website-preflight.mjs
+          node --check workers/executor/website-preflight.test.mjs
+      - name: API tests with controlled REA CLI fixture
+        run: node --test workers/executor/server.test.mjs workers/executor/website-preflight.test.mjs workers/executor/tenant-policy.test.mjs
+  real-rea:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: rea-main/package-lock.json
+      - name: Install actual REA 6.8.0 dependencies
+        working-directory: rea-main
+        run: npm ci --no-audit --no-fund
+      - name: Build actual REA
+        working-directory: rea-main
+        run: npm run build:cached
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build safe local managed assembly
+        run: |
+          dotnet new classlib --framework net8.0 --name Fixture --output /tmp/rea-dotnet --no-restore
+          dotnet restore /tmp/rea-dotnet/Fixture.csproj
+          dotnet build /tmp/rea-dotnet/Fixture.csproj -c Release --no-restore
+      - name: Analyze authorized JS, HAR and .NET fixtures via real REA
+        env:
+          REA_SMOKE_DOTNET_ASSEMBLY: /tmp/rea-dotnet/bin/Release/net8.0/Fixture.dll
+        run: node --test workers/executor/real-smoke.test.mjs
+  saas-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Schema integrity and constraints
+        run: python3 docs/platform/schema/test_schema.py
+  chromium-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: rea-main/package-lock.json
+      - name: Install and build REA
+        working-directory: rea-main
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:cached
+      - name: Inspect real local Chromium fixture through REA CDP
+        env:
+          REA_TEST_CHROME: /usr/bin/google-chrome
+        run: |
+          /usr/bin/google-chrome --version
+          node --test workers/executor/browser-smoke.test.mjs
+  android-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: rea-main/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install and build REA
+        working-directory: rea-main
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:cached
+      - name: Fetch integrity-pinned public APK and JADX releases
+        working-directory: rea-main
+        run: npm run fixtures:android -- /tmp/rea-android
+      - name: Analyze verified Android APK through REA/JADX
+        env:
+          REA_TEST_APK: /tmp/rea-android/ApiDemos-debug.apk
+          REA_JADX_MCP_JAR: /tmp/rea-android/jadx-headless-mcp-0.7.1-all.jar
+        run: node --test workers/executor/android-smoke.test.mjs
